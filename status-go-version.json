@@ -3,7 +3,7 @@
     "_comment": "Instead use: scripts/update-status-go.sh <rev>",
     "owner": "status-im",
     "repo": "status-go",
-    "version": "v0.87.1",
-    "commit-sha1": "59eeed94368c1f0ee9d603e313a13f178e644514",
-    "src-sha256": "1pnyb4vw88nx5b8np0ajhfyjblfkxr8bl40vhilz5gpz1g1a9l3c"
+    "version": "chore/shorten-sleep-mailserver-sync",
+    "commit-sha1": "f63c67dda64efa5e4a66368a8341f5410696bf64",
+    "src-sha256": "1v9jig4plrxkhkj6i151ylih7yja0n3gjfpl55r8i96a9bfb9q1l"
 }
