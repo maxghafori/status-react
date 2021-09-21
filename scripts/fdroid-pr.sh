@@ -1,80 +1,113 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
-version_name=$(cat VERSION)
-working_dir="/tmp/fdroid-release"
-clone_dir="/tmp/fdroid-release/$version_name"
-username=$USERNAME
-metadata_file="$clone_dir/metadata/im.status.ethereum.yml"
-release_link=$RELEASE_LINK
-apk_file="$working_dir/$version_name.apk"
-commit_sha=$(git rev-parse --verify HEAD)
+GIT_ROOT=$(cd "${BASH_SOURCE%/*}" && git rev-parse --show-toplevel)
+FDROIDATA_REPO_URL="https://gitlab.com/fdroid/fdroiddata.git"
+WORKING_DIR="${HOME}/fdroid-release"
 
-echo "recreating working directory..."
+source "${GIT_ROOT}/scripts/colors.sh"
 
-rm -rf $working_dir
-mkdir -p $working_dir
+function log_info()    { echo -e " ${GRN}>>>${RST} $@"; }
+function log_data()    { echo -e " ${BLU}===${RST} $@"; }
+function log_notice()  { echo -e " ${YLW}<<<${RST} $@"; }
+function log_warning() { echo -e " ${RED}!!!${RST} $@"; }
 
-echo "fetching release..."
+if [[ $# -ne 1 ]]; then
+    echo "No release URL provided!" >&2
+    echo "Usage: fdroid-pr.sh https://.../release.apk" >&2
+    exit 1
+fi
+# URL of APK to identify release version code
+RELEASE_APK="${1}"
 
-wget $release_link -O $apk_file
+log_info "Creating working dir..."
+mkdir -p "${WORKING_DIR}"
 
-echo "cloning branch, this might take a while..."
+APK_FILE="${WORKING_DIR}/status.apk"
+if [[ -f "${RELEASE_APK}" ]]; then
+    log_info "Using: ${RELEASE_APK}"
+    APK_FILE="${RELEASE_APK}"
+else
+    log_info "Fetching release..."
+    curl -s "${RELEASE_APK}" -o "${APK_FILE}"
+fi
 
-git clone git@gitlab.com:$username/fdroiddata.git $clone_dir
+log_info "Parsing APK..."
 
-echo "updating branch with upstream, this also might take a while..."
+VERSION_CODE=$(apkanalyzer manifest version-code "${APK_FILE}")
+if [[ -n "${VERSION_CODE}" ]]; then
+    log_data "Version Code: ${VERSION_CODE}"
+else
+    log_warning "Failed to find version code." >&2; exit 1
+fi
 
-cd $clone_dir \
-  && git remote add upstream https://gitlab.com/fdroid/fdroiddata.git \
-  && git fetch upstream && git checkout master \
-  && git reset --hard upstream/master
+VERSION_NAME=$(apkanalyzer manifest print "${APK_FILE}" | awk -F'"' '/android:versionName/{print $2}')
+if [[ -n "${VERSION_NAME}" ]]; then
+    log_data "Version Code: ${VERSION_NAME}"
+else
+    log_warning "Failed to find version name." >&2; exit 1
+fi
 
-echo "creating release branch..."
+COMMIT_HASH=$(apkanalyzer manifest print "${APK_FILE}" | awk -F'"' '/commitHash/{getline; print $2}')
+if [[ -n "${COMMIT_HASH}" ]]; then
+    log_data "Commit Hash: ${COMMIT_HASH}"
+else
+    log_warning "Failed to find commit hash." >&2; exit 1
+fi
 
-branch_name="release/$version_name"
-git checkout -b $branch_name
+CLONE_DIR="${WORKING_DIR}/fdroidata"
+METADATA_FILE="${CLONE_DIR}/metadata/im.status.ethereum.yml"
 
-echo "extracting release code..."
+PREVIOUS_BRANCH=""
+if [[ -d "${CLONE_DIR}" ]]; then
+    log_info "Fetching: ${FDROIDATA_REPO_URL}"
+    cd "${CLONE_DIR}"
+    PREVIOUS_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+    git checkout master
+    git pull --force
+else
+    log_info "Cloning: ${FDROIDATA_REPO_URL}"
+    git clone -q --depth=1 "${FDROIDATA_REPO_URL}" "${CLONE_DIR}"
+    cd "${CLONE_DIR}"
+fi
 
-version_code=$(apkanalyzer manifest version-code $apk_file)
+BRANCH_NAME="status-im/v${VERSION_NAME}"
+log_info "Checkout out branch: ${BRANCH_NAME}"
+if [[ "${PREVIOUS_BRANCH}" == "${BRANCH_NAME}" ]]; then
+    log_warning "Removing previous branch: ${PREVIOUS_BRANCH}"
+    git branch -D "${BRANCH_NAME}"
+fi
+git switch -C "${BRANCH_NAME}"
 
-# grep last versionName line and extract line number
-start_line_raw=$(grep -n "versionName:" $metadata_file | tail -n1 | grep -o -P '([0-9]+):')
-start_line=${start_line_raw::-1}
+log_info "Updating metadata file..."
 
-# grep last build line and extract line number
-end_line_raw=$(grep -n "build:" $metadata_file | tail -n1 | grep -o -P '([0-9]+):')
-end_line=${end_line_raw::-1}
-
+# find line number of last "versionName" line
+START_LINE=$(awk '/ versionCode:/{n=NR} END{print n}' "${METADATA_FILE}")
+# find line number of last "build" line
+END_LINE=$(awk '/ build:/{n=NR} END{print n}' "${METADATA_FILE}")
 # Get the latest entry, excluding version info
-raw_metadata=$(awk "NR >= $(($start_line+3)) && NR <= $end_line" $metadata_file)
+BUILD_PARAMS=$(awk "NR >= $((START_LINE+2)) && NR <= ${END_LINE}" "${METADATA_FILE}")
 
 # Build new entry
-new_entry="  - versionName: $version_name
-    versionCode: $version_code
-    commit: $commit_sha
-"
+NEW_ENTRY="
+  - versionName: ${VERSION_NAME}
+    versionCode: ${VERSION_CODE}
+    commit: ${COMMIT_HASH}
+${BUILD_PARAMS}"
 
-echo "updating metadata file..."
+# Insert new release build entry
+sed -i "$((END_LINE+1))i\\${NEW_ENTRY//$'\n'/\\n}" "${METADATA_FILE}"
+# Update current version values
+sed -i "s/CurrentVersion: .*/CurrentVersion: ${VERSION_NAME}/" "${METADATA_FILE}"
+sed -i "s/CurrentVersionCode: .*/CurrentVersionCode: ${VERSION_CODE}/" "${METADATA_FILE}"
 
-# Get prelude
-start_file=$(awk "NR >= 0 && NR <= $end_line" $metadata_file)
-# Get end of file
-end_file=$(awk "NR > $end_line" $metadata_file)
-
-# and build output file
-printf "$start_file
-
-$new_entry$raw_metadata
-$end_file" | head -n -2 > $metadata_file
-
-set_version_entry="CurrentVersion: $version_name
-CurrentVersionCode: $version_code"
-
-# append last two lines and remove trailing newline
-printf "$set_version_entry" | head -c -1 >> $metadata_file
-
+log_info "Committing changes..."
 # Add, commit and push
-cd $clone_dir && git add $metadata_file && git commit -m "Add Status version $version_name" && git push --set-upstream origin $branch_name
+COMMIT_MESSAGE="Update Status to ${VERSION_NAME} (${VERSION_CODE})"
+git add ${METADATA_FILE}
+git commit -m "${COMMIT_MESSAGE}"
 
-echo "You can now go to https://gitlab.com/$username/fdroiddata and create PR"
+log_info "SUCCESS"
+log_notice "Now add your fork of fdroidata as a remote to the repository and push."
+log_notice "Then create a Merge Request from the branch in your fork."
+log_notice "Repo path: ${BLD}${CLONE_DIR}${RST}"

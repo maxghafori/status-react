@@ -171,6 +171,13 @@ fdroid-fix-tmp: ##@prepare Fix TMPDIR permissions so Vagrant user is the owner
 
 fdroid-build-env: fdroid-max-watches fdroid-nix-dir fdroid-fix-tmp ##@prepare Setup build environment for F-Droud build
 
+fdroid-pr: export TARGET := android
+fdroid-pr: ##@prepare Create F-Droid release PR
+ifndef APK
+	$(error APK env var not defined)
+endif
+	scripts/fdroid-pr.sh "$(APK)"
+
 xcode-clean: SHELL := /bin/sh
 xcode-clean: XCODE_HOME := $(HOME)/Library/Developer/Xcode
 xcode-clean: ##@prepare Clean XCode derived data and archives
@@ -332,8 +339,3 @@ repl-clojure: ##@repl Start Clojure repl for mobile App
 	yarn shadow-cljs cljs-repl mobile
 
 repl-nix: nix-repl ##@repl Start an interactive Nix REPL
-
-fdroid-pr: TARGET := android
-fdroid-pr: GL_USERNAME ?= "${USERNAME}"
-fdroid-pr: ##@fdroid Create F-Droid release PR
-	scripts/fdroid-pr.sh

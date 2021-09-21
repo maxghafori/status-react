@@ -18,6 +18,8 @@ There are two ways - automated and manual - described below.
 
 ## Automated
 
+The script will analyze a provided APK, update the metadata file based on that information, and commit the change to [`fdroiddata`](https://gitlab.com/fdroid/fdroiddata) repo. The creation of merge request is manual.
+
 #### Requirements:
 
 - GitLab account
@@ -26,18 +28,21 @@ There are two ways - automated and manual - described below.
 
 #### Steps
 
-1. First checkout the branch/commit you want to release
+1. Use the F-Droid PR update script via `make`:
+    ```sh
+    make fdroid-pr APK=StatusIm-Mobile-v1.16.0-ef34af.apk
     ```
-    git checkout release/1.12.x
+    The script also accepts a URL.
+2. Add a fork repo:
+    ```sh
+    git remote add john https://gitlab.com/john/fdroiddata.git
     ```
-2. Run the F-Droid PR script
+3. Push:
+    ```sh
+    git push john status-im/v1.16.0
     ```
-    make fdroid-pr \
-        USERNAME=cammellos \
-        RELEASE_LINK=https://releases.status.im/StatusIm-Mobile-v1.12.0-cfb825-universal.apk
-    ```
+4. [Create a PR via the GitLab interface.](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
 
-This will update the file, commit and push to the [`fdroiddata`](https://gitlab.com/fdroid/fdroiddata) repo. Then you can create a PR from the GitLab interface.
 
 ## Manual
 
