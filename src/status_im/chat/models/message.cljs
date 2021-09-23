@@ -10,7 +10,6 @@
             [taoensso.timbre :as log]
             [status-im.chat.models.mentions :as mentions]
             [clojure.string :as string]
-            [status-im.contact.db :as contact.db]
             [status-im.utils.types :as types]
             [status-im.ui.screens.chat.state :as view.state]
             [status-im.chat.models.loading :as chat.loading]
@@ -56,7 +55,7 @@
    (or
     (= chat-id (chat-model/my-profile-chat-topic db))
     (when-let [pub-key (get-in db [:chats chat-id :profile-public-key])]
-      (contact.db/added? db pub-key)))))
+      (get-in db [:contacts/contacts pub-key :added])))))
 
 (defn get-timeline-message [db chat-id message-js]
   (when (timeline-message? db chat-id)

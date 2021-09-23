@@ -1262,7 +1262,7 @@
 
 (defn filter-selected-contacts
   [selected-contacts contacts]
-  (filter #(contact.db/added? (contacts %)) selected-contacts))
+  (filter #(:added (contacts %)) selected-contacts))
 
 (re-frame/reg-sub
  :selected-contacts-count
@@ -2189,7 +2189,7 @@
  (fn [contacts]
    (->> contacts
         (filter (fn [[_ contact]]
-                  (contact.db/blocked? contact)))
+                  (:blocked contact)))
         (contact.db/sort-contacts))))
 
 (re-frame/reg-sub
@@ -2242,7 +2242,7 @@
  (fn [[_ identity] _]
    [(re-frame/subscribe [:contacts/contact-by-identity identity])])
  (fn [[contact] _]
-   (contact.db/added? contact)))
+   (:added contact)))
 
 (re-frame/reg-sub
  :contacts/contact-two-names-by-identity
@@ -2290,8 +2290,7 @@
  :contacts/all-contacts-not-in-current-chat
  :<- [::query-current-chat-contacts remove]
  (fn [contacts]
-   (->> contacts
-        (filter contact.db/added?))))
+   (filter :added contacts)))
 
 (re-frame/reg-sub
  :contacts/current-chat-contacts
