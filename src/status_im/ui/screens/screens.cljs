@@ -457,9 +457,9 @@
            {:name      :privacy-and-security-profile-pic-show-to
             :options   {:topbar {:title {:text (i18n/label :t/show-profile-pictures-to)}}}
             :component privacy-and-security/profile-pic-show-to}
-           {:name      :appearance-profile-pic
+           {:name      :privacy-and-security-profile-pic
             :options   {:topBar {:title {:text (i18n/label :t/show-profile-pictures)}}}
-            :component appearance/profile-pic}
+            :component privacy-and-security/profile-pic}
            {:name      :notifications
             :options   {:topBar {:title {:text (i18n/label :t/notification-settings)}}}
             :component notifications-settings/notifications-settings}
