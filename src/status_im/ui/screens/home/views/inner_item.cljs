@@ -14,12 +14,17 @@
             [status-im.utils.datetime :as time]
             [status-im.ui.components.chat-icon.styles :as chat-icon.styles]))
 
-(defn preview-label [label-key]
+(defn preview-label [label-key label-fn]
   [react/text {:style               styles/last-message-text
-               :accessibility-label :no-messages-text}
-   (i18n/label label-key)])
+               :accessibility-label :no-messages-text
+               :number-of-lines     1}
+   (i18n/label label-key label-fn)])
 
-(defn message-content-text [{:keys [content content-type]} absolute]
+(defn content-type-community-invite? [content-type community-id]
+  (and (= constants/content-type-community content-type)
+       (not (string/blank? community-id))))
+
+(defn message-content-text [{:keys [content content-type community-id]} absolute]
   [react/view (when absolute {:position :absolute :left 72 :top 32 :right 80})
    (cond
      (not (and content content-type))
@@ -40,7 +45,12 @@
      [preview-label :t/image]
 
      (= constants/content-type-audio content-type)
-     [preview-label :t/audio])])
+     [preview-label :t/audio]
+
+     (content-type-community-invite? content-type community-id)
+     (let [{:keys [name]}
+           @(re-frame/subscribe [:communities/community community-id])]
+       [preview-label :t/community-message-preview {:community-name name}]))])
 
 (def memo-timestamp
   (memoize
@@ -98,9 +108,17 @@
      ;; won't be applied correctly.
      (first @(re-frame/subscribe [:contacts/contact-two-names-by-identity chat-id])))])
 
+(defn highlight-chat? [home-item]
+  (let [{:keys [group-chat unviewed-messages-count last-message highlight public?]} home-item
+        {:keys [content-type community-id]} last-message]
+    (if (> unviewed-messages-count 0)
+      (or highlight (content-type-community-invite? content-type community-id))
+      (and highlight (and group-chat (not public?))))))
+
 (defn home-list-item [home-item opts]
-  (let [{:keys [chat-id chat-name color group-chat public? timestamp last-message muted]} home-item]
-    [react/touchable-opacity (merge {:style {:height 64}} opts)
+  (let [{:keys [chat-id chat-name color group-chat public? timestamp last-message muted]} home-item
+        background-color (when (highlight-chat? home-item) (colors/get-color :interactive-02))]
+    [react/touchable-opacity (merge {:style {:height 64 :background-color background-color}} opts)
      [:<>
       [chat-item-icon muted (and group-chat (not public?)) (and group-chat public?)]
       [chat-icon.screen/chat-icon-view chat-id group-chat chat-name
@@ -118,5 +136,5 @@
        (memo-timestamp (if (pos? (:whisper-timestamp last-message))
                          (:whisper-timestamp last-message)
                          timestamp))]
-      [message-content-text (select-keys last-message [:content :content-type]) true]
+      [message-content-text (select-keys last-message [:content :content-type :community-id]) true]
       [unviewed-indicator home-item]]]))

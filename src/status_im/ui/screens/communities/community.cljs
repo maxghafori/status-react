@@ -196,7 +196,7 @@
       [blank-page (i18n/label :t/welcome-community-blank-message)]
       [list/flat-list
        {:key-fn                       :chat-id
-        :content-container-style      {:padding-bottom 8}
+        :content-container-style      {:padding-bottom 8 :margin-top -8}
         :keyboard-should-persist-taps :always
         :data                         (get chats "")
         :render-data                  {:from-chat from-chat}
