@@ -3,7 +3,7 @@
     "_comment": "Instead use: scripts/update-status-go.sh <rev>",
     "owner": "status-im",
     "repo": "status-go",
-    "version": "v0.88.3",
-    "commit-sha1": "5793470fad7a90ee2ec878f18a47f3e3630c00fe",
-    "src-sha256": "192m5x9w37m92c9gkfdv89wr1071c4iab7n7v8j16spha1si06m2"
+    "version": "feature/#12520-sync-removing-chat",
+    "commit-sha1": "29422bf2f2ae3f8e5a4f6e40f075aea06057757f",
+    "src-sha256": "0ana6lwnaqdh0cymi33lvlxlv0vhrm9sfaxwznzijgkl5v8xllyw"
 }
